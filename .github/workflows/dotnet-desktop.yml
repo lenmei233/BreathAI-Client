@@ -42,8 +42,13 @@ jobs:
           # 从标签提取版本号（如 v1.0.0 → 1.0.0）
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
+          # 如果没有标签，则使用默认版本
+          if [ -z "$VERSION" ] || [ "$VERSION" = "${GITHUB_REF}" ]; then
+            VERSION="0.0.0"
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "提取的版本号: $VERSION"
         shell: bash
       
       - name: 安装 .NET SDK
@@ -58,6 +63,7 @@ jobs:
       
       - name: 构建并发布（依赖框架+单文件+剪裁）
         run: |
+          echo "使用版本号: ${{ env.VERSION }}"
           dotnet publish BreathAIClient.csproj \
             -c Release \
             -r ${{ matrix.target }} \
@@ -102,8 +108,13 @@ jobs:
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
+          # 如果没有标签，则使用默认版本
+          if [ -z "$VERSION" ] || [ "$VERSION" = "${GITHUB_REF}" ]; then
+            VERSION="0.0.0"
+          fi
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Release版本号: $VERSION"
         shell: bash
 
       - name: 下载所有平台构建产物
