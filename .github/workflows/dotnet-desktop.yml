@@ -79,13 +79,21 @@ jobs:
         run: |
           cd ./publish/${{ matrix.target }}
           if [ "${{ matrix.ext }}" = "zip" ]; then
-            # Windows 用 zip 打包（强制使用相对路径）
-            zip -r ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.zip .
+            # Windows 使用 PowerShell 打包
+            Compress-Archive -Path * -DestinationPath ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.zip
           else
             # Linux/macOS 用 tar.gz 打包
             tar -czf ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.tar.gz .
           fi
+        shell: pwsh
+        if: runner.os == 'Windows'
+      
+      - name: 打包发布产物 (Linux/macOS)
+        run: |
+          cd ./publish/${{ matrix.target }}
+          tar -czf ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.tar.gz .
         shell: bash
+        if: runner.os != 'Windows'
       
       - name: 上传产物到 Artifact
         uses: actions/upload-artifact@v4
