@@ -1,0 +1,153 @@
+name: Build Avalonia Cross-Platform
+
+on:
+  push:
+    tags:
+      - 'v*' # 推送 v* 格式标签（如 v1.0.0、v1.0.1）时触发
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # 确保一个平台构建失败不影响其他平台
+      fail-fast: false
+      matrix:
+        include:
+          # Windows 平台
+          - os: windows-latest
+            target: win-x64
+            ext: zip
+          - os: windows-latest
+            target: win-arm64
+            ext: zip
+          # Linux 平台
+          - os: ubuntu-latest
+            target: linux-x64
+            ext: tar.gz
+          - os: ubuntu-latest
+            target: linux-arm64
+            ext: tar.gz
+          # macOS 平台
+          - os: macos-latest
+            target: osx-x64
+            ext: tar.gz
+          - os: macos-latest
+            target: osx-arm64
+            ext: tar.gz
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          # 确保获取完整提交历史（可选，如需版本号关联可开启）
+          fetch-depth: 0
+
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          # 修复参数名：将 version 改为 dotnet-version（官方指定参数名）
+          dotnet-version: '8.x'
+          # 禁用缓存（如需加速可改为 true，首次调试建议关闭）
+          cache: false
+
+      - name: 还原项目依赖
+        run: dotnet restore src/BreathAIClient/BreathAIClient.csproj
+        # 指定项目路径，避免多项目时还原错误
+
+      - name: 构建并发布（依赖框架+单文件+剪裁）
+        run: |
+          dotnet publish src/BreathAIClient/BreathAIClient.csproj \
+            -c Release \ # 显式指定 Release 配置（避免默认 Debug 配置）
+            -r ${{ matrix.target }} \ # 目标运行时（来自矩阵）
+            --self-contained false \ # 依赖框架（非自包含）
+            -p:PublishSingleFile=true \ # 单文件打包
+            -p:IncludeAllContentForSelfExtract=true \ # 自解压优化（单文件启动更快）
+            -p:TrimUnusedDependencies=true \ # 启用未使用依赖剪裁（减小体积）
+            -p:Version=${{ github.ref_name }} \ # 版本号与标签关联（如 v1.0.0）
+            -o ./publish/${{ matrix.target }} # 输出目录
+
+      - name: 打包发布产物
+        run: |
+          # 进入发布目录，按平台格式打包
+          cd ./publish/${{ matrix.target }}
+          if [ "${{ matrix.ext }}" = "zip" ]; then
+            # Windows 用 zip 格式
+            zip -r ../BreathAIClient-${{ matrix.target }}-${{ github.ref_name }}.zip .
+          else
+            # Linux/macOS 用 tar.gz 格式
+            tar -czf ../BreathAIClient-${{ matrix.target }}-${{ github.ref_name }}.tar.gz .
+          fi
+        # 产物名添加标签版本（如 BreathAIClient-win-x64-v1.0.0.zip），便于区分
+
+      - name: 上传产物到 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BreathAIClient-${{ matrix.target }}-${{ github.ref_name }}
+          # 产物路径：匹配上一步打包的文件
+          path: ./publish/BreathAIClient-${{ matrix.target }}-${{ github.ref_name }}.${{ matrix.ext }}
+          # 保留时间：90 天（按需调整）
+          retention-days: 90
+
+  release:
+    name: 创建 Release 并上传 Assets
+    needs: build # 依赖 build 任务完成（所有平台构建成功后才执行）
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') # 仅标签推送时执行
+
+    steps:
+      - name: 获取标签信息
+        id: tag_info
+        run: |
+          # 提取标签名（如从 refs/tags/v1.0.0 提取 v1.0.0）
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          # 提取版本号（如从 v1.0.0 提取 1.0.0，可选）
+          VERSION=${TAG_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: 下载所有平台构建产物
+        uses: actions/download-artifact@v4
+        with:
+          # 下载所有 Artifact 到 artifacts 目录
+          path: ./artifacts
+          # 自动解压（避免手动处理压缩包）
+          merge-multiple: true
+
+      - name: 创建 GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          # 自动获取仓库权限（无需手动配置）
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          release_name: Release ${{ env.TAG_NAME }}
+          # 发布描述（可按需修改，支持 Markdown）
+          body: |
+            ## 版本特性
+            - 基于 .NET 8 + Avalonia 构建
+            - 支持 Windows/Linux/macOS 多平台
+            - 单文件部署（依赖 .NET 8 运行时）
+            - 启用依赖剪裁（减小产物体积）
+            
+            ## 下载说明
+            - Windows 用户：选择 win-x64/win-arm64 版本
+            - Linux 用户：选择 linux-x64/linux-arm64 版本
+            - macOS 用户：选择 osx-x64/osx-arm64 版本
+          # 不设为草稿（直接发布）
+          draft: false
+          # 不设为预发布（正式版本）
+          prerelease: false
+
+      - name: 上传所有产物到 Release
+        uses: shogo82148/actions-upload-release-asset@v1
+        # 替代官方 upload-release-asset（支持通配符，避免循环）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          # 匹配所有下载的产物（自动遍历 artifacts 目录下的文件）
+          asset_path: ./artifacts/BreathAIClient-*
+          # 自动识别 MIME 类型（无需手动指定）
+          asset_content_type: application/octet-stream
