@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:BreathAIClient.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="clr-namespace:BreathAIClient.Views"
+        mc:Ignorable="d" 
+            Width="1000"
+            Height="700"
+        x:Class="BreathAIClient.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="BreathAI Client">
+
+
+    <TabControl>
+    <TabItem Header="聊天">
+      <views:ChatView DataContext="{Binding Chat}"/>
+    </TabItem>
+    <TabItem Header="设置">
+      <views:SettingsView DataContext="{Binding Settings}"/>
+    </TabItem>
+    <TabItem Header="关于">
+        <views:AboutView DataContext="{Binding About}"/>
+    </TabItem>
+  </TabControl>
+
+</Window>

@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:BreathAIClient.ViewModels" 
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:DataType="vm:SettingsViewModel"
+             x:Class="BreathAIClient.Views.SettingsView">
+<StackPanel Margin="16" Spacing="12">
+    <TextBlock Text="API 基础地址（不要以 / 结尾）" />
+    <TextBox Text="{Binding ApiBaseUrl}"/>
+
+    <TextBlock Text="API Key"/>
+    <TextBox PasswordChar="•" Text="{Binding ApiKey}" Watermark="Enter your API key"/>
+    <TextBlock Text="默认模型ID"/>
+    <TextBox Text="{Binding DefaultModel}"/>
+
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+      <Button Content="保存" Command="{Binding SaveCommand}"/>
+      <Button Content="测试连接" Command="{Binding TestCommand}"/>
+      <TextBlock Text="{Binding StatusMessage}" Margin="12,0,0,0"/>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

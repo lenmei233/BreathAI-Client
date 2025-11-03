@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:BreathAIClient.ViewModels"
+             xmlns:models="clr-namespace:BreathAIClient.Models"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" 
+             x:DataType="vm:ChatViewModel"
+             x:Class="BreathAIClient.Views.ChatView">  
+
+ <DockPanel Margin="10" LastChildFill="True">
+    <!-- 顶部工具栏 -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+      <TextBlock Text="模型ID:" VerticalAlignment="Center"/>
+      <ComboBox Width="260" SelectedItem="{Binding SelectedModel}" ItemsSource="{Binding AvailableModels}" />
+      <Button Content="清空聊天" Command="{Binding ClearChatCommand}" Margin="12,0,0,0" />
+      <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" Text="{Binding Busy, StringFormat='忙碌:{0}'}"/>
+    </StackPanel>
+    
+    <!-- 消息显示区域 -->
+    <ScrollViewer DockPanel.Dock="Top" Height="300" VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Messages}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="models:ChatMessage">
+            <Border Margin="0,6,0,6" Background="#1E1E1E" CornerRadius="8">
+              <StackPanel Margin="8">
+                <!-- 消息头部：角色 + 复制按钮 -->
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  
+                  <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Role}" Foreground="#FFFFFF"/>
+                  <Button Grid.Column="1" 
+                          Content="复制" 
+                          Command="{Binding $parent[ItemsControl].DataContext.CopyMessageCommand}"
+                          CommandParameter="{Binding}"
+                          Padding="8,2"
+                          FontSize="10"
+                          Height="20"
+                          Background="Transparent"
+                          BorderBrush="#666666"
+                          Foreground="#DDDDDD"/>
+                </Grid>
+                
+                <!-- 消息内容 -->
+                <TextBlock TextWrapping="Wrap" Text="{Binding Content}" Foreground="#DDDDDD" Margin="0,4,0,4"/>
+                
+                <!-- 消息底部：时间 + Token信息 -->
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock FontSize="11" Foreground="Gray" Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss}'}" />
+                  <TextBlock FontSize="11" Foreground="#AAAAAA" Text="{Binding TokenInfo}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+    
+    <!-- 分隔条 -->
+    <Border DockPanel.Dock="Top" Height="8" Background="Transparent" />
+    
+    <!-- 输入区域 -->
+    <Grid DockPanel.Dock="Bottom"
+          ColumnDefinitions="*,Auto"
+          RowDefinitions="Auto,Auto"
+          ColumnSpacing="8"
+          Background="Transparent">
+      
+      <TextBox x:Name="InputTextBox"
+               Grid.Row="0" Grid.Column="0"
+               Text="{Binding InputText}"
+               AcceptsReturn="True"
+               TextWrapping="Wrap"
+               MaxHeight="200"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Top"
+               FontSize="14"
+               Padding="6"
+               KeyDown="OnInputTextKeyDown"
+               TextChanged="OnInputTextChanged"/>
+               
+      <StackPanel Grid.Row="0" Grid.Column="1"
+                  Orientation="Vertical"
+                  VerticalAlignment="Center"
+                  HorizontalAlignment="Right"
+                  Margin="0,0,6,6"
+                  Width="170">
+        <Button Content="发送" Command="{Binding SendCommand}" />
+        <Button Content="带图片"
+                Command="{Binding SendWithImageCommand}"
+                CommandParameter="{Binding $parent[Window]}" />
+      </StackPanel>
+      
+      <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                 Text="AI可能会犯错，请谨慎参考。注意:带图片功能需要使用的模型支持,通常带有instruct字样"
+                 Foreground="Gray"
+                 FontSize="12"
+                 Margin="4,6,0,0"/>
+    </Grid>
+  </DockPanel>
+</UserControl>

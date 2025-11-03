@@ -1,0 +1,22 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BreathAIClient.App"
+             xmlns:local="using:BreathAIClient"
+             xmlns:u-semi="https://irihi.tech/ursa/themes/semi"
+             xmlns:semi="https://irihi.tech/semi"
+             xmlns:system="using:System"
+             RequestedThemeVariant="Default">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+  
+    <Application.Styles>
+         <semi:SemiTheme Locale="zh-CN" />
+        <u-semi:SemiTheme Locale="zh-CN"/>
+    </Application.Styles>
+        <Application.Resources>
+        <system:String x:Key="AppVersion">v1.0.0</system:String>
+    </Application.Resources>
+</Application>

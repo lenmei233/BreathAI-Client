@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="BreathAIClient.Views.AboutView">
+<StackPanel Margin="16" Spacing="12">
+    <TextBlock Text="BreathAI Client" FontSize="18" FontWeight="SemiBold"/>
+
+    <TextBlock>
+         <Run Text="基于"/>
+        <Run Text="Avalonia" FontWeight="Bold" Foreground="#0D6EFD"/>
+        <Run Text="和"/>
+        <Run Text=".NET8 " FontWeight="Bold" Foreground="#512BD4"/>
+        <Run Text="构建的跨平台AI聊天客户端。"/>
+    </TextBlock>
+    <TextBlock PointerPressed="TextBlock_PointerPressed_1">
+		<Run Text="后端服务由:"/>
+        <Run Text=" BreathAI " FontWeight="Bold" Foreground="#198754"/>
+        <Run Text="提供高性能免费AI模型的开放平台。"/>
+    </TextBlock>
+    <TextBlock PointerPressed="TextBlock_PointerPressed" >
+        <Run Text="此项目开源地址: " />
+        <Run Text="https://github.com/lenmei233/BreathAI-Client" Foreground="#3E8ED3"/>
+        </TextBlock>
+      
+    <TextBlock VerticalAlignment="Bottom" Text="{DynamicResource AppVersion}"/>
+
+  </StackPanel>
+</UserControl>
