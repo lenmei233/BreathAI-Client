@@ -39,7 +39,7 @@ jobs:
       - name: 安装 .NET SDK
         uses: actions/setup-dotnet@v3
         with:
-          version: '8.x' # 使用 .NET 8 SDK
+          dotnet-version: '8.x' # 使用 .NET 8 SDK
 
       - name: 还原依赖
         run: dotnet restore
