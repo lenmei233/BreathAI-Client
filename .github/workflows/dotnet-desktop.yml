@@ -79,12 +79,12 @@ jobs:
         run: |
           cd ./publish/${{ matrix.target }}
           if ("${{ matrix.ext }}" -eq "zip") {
-          Compress-Archive -Path * -DestinationPath ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.zip
+            Compress-Archive -Path * -DestinationPath ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.zip
           } else {
-          tar -czf ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.tar.gz .
+            tar -czf ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.tar.gz .
           }
-            shell: pwsh
-            if: runner.os == 'Windows'
+        shell: pwsh
+        if: runner.os == 'Windows'
       
       - name: 打包发布产物 (Linux/macOS)
         run: |
