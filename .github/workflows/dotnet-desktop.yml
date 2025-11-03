@@ -1,0 +1,145 @@
+name: Build Avalonia Cross-Platform
+on:
+  push:
+    tags:
+      - 'v*' # 推送 v* 格式标签（如 v1.0.0）时触发
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # 单个平台失败不影响其他
+      matrix:
+        include:
+          - os: windows-latest
+            target: win-x64
+            ext: zip
+            shell: bash # Windows 强制使用 bash 避免 PowerShell 语法问题
+          - os: windows-latest
+            target: win-arm64
+            ext: zip
+            shell: bash
+          - os: ubuntu-latest
+            target: linux-x64
+            ext: tar.gz
+            shell: bash
+          - os: ubuntu-latest
+            target: linux-arm64
+            ext: tar.gz
+            shell: bash
+          - os: macos-latest
+            target: osx-x64
+            ext: tar.gz
+            shell: bash
+          - os: macos-latest
+            target: osx-arm64
+            ext: tar.gz
+            shell: bash
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 获取版本号（移除 v 前缀）
+        run: |
+          # 从标签提取版本号（如 v1.0.0 → 1.0.0）
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+        shell: bash
+      
+      - name: 安装 .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.x'
+          cache: false
+      
+      - name: 还原项目依赖
+        run: dotnet restore BreathAIClient.csproj
+        shell: ${{ matrix.shell }}
+      
+      - name: 构建并发布（依赖框架+单文件+剪裁）
+        run: |
+          dotnet publish BreathAIClient.csproj \
+            -c Release \
+            -r ${{ matrix.target }} \
+            --self-contained false \
+            -p:PublishSingleFile=true \
+            -p:IncludeAllContentForSelfExtract=true \
+            -p:TrimUnusedDependencies=true \
+            -p:Version=${{ env.VERSION }} \
+            -o ./publish/${{ matrix.target }}
+        shell: ${{ matrix.shell }} # 统一使用 bash 避免换行符问题
+      
+      - name: 打包发布产物
+        run: |
+          cd ./publish/${{ matrix.target }}
+          if [ "${{ matrix.ext }}" = "zip" ]; then
+            # Windows 用 zip 打包（强制使用相对路径）
+            zip -r ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.zip .
+          else
+            # Linux/macOS 用 tar.gz 打包
+            tar -czf ../BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.tar.gz .
+          fi
+        shell: ${{ matrix.shell }}
+      
+      - name: 上传产物到 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}
+          path: ./publish/BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}.${{ matrix.ext }}
+          retention-days: 90
+
+  release:
+    name: 创建 Release 并上传 Assets
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: 检出代码（用于读取 CHANGELOG 等说明）
+        uses: actions/checkout@v4
+
+      - name: 获取标签信息
+        id: tag_info
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+        shell: bash
+
+      - name: 下载所有平台构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: 创建 GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Release ${{ env.TAG_NAME }}
+          body: |
+            ## 版本特性
+            - 基于 .NET 8 + Avalonia 构建的跨平台AI聊天客户端
+            - 后端服务由 BreathAl 提供高性能免费AI模型
+            - 支持 Windows/Linux/macOS 多平台
+            - 单文件部署（需提前安装 .NET 8 运行时）
+
+            ## 版本号
+            ${{ env.VERSION }}
+
+            ## 安装说明
+            - macOS 用户注意：启动前需右键"打开"信任首次运行
+            - 所有平台都需要预先安装 [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+          draft: false
+          prerelease: false
+          files: |
+            ./artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
