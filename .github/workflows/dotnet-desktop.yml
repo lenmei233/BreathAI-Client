@@ -2,15 +2,15 @@ name: Build Avalonia Cross-Platform
 on:
   push:
     tags:
-      - 'v*' # 推送 v* 格式标签（如 v1.0.0）时触发
-  workflow_dispatch: # 允许手动触发
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false # 单个平台失败不影响其他
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -31,17 +31,15 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: 获取版本号（移除 v 前缀）
+      - name: 获取版本号
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
-          # 无标签时使用默认版本
           if [ -z "$VERSION" ] || [ "$VERSION" = "${GITHUB_REF}" ]; then
             VERSION="0.0.0"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          echo "提取的版本号: $VERSION"
         shell: bash
       
       - name: 安装 .NET SDK
@@ -50,13 +48,11 @@ jobs:
           dotnet-version: '8.x'
           cache: false
       
-      - name: 还原项目依赖
+      - name: 还原依赖
         run: dotnet restore BreathAIClient.csproj
-        shell: bash
       
-      - name: 构建并发布（依赖框架+单文件+剪裁）
+      - name: 构建发布
         run: |
-          echo "使用版本号: ${{ env.VERSION }}"
           dotnet publish BreathAIClient.csproj \
             -c Release \
             -r ${{ matrix.target }} \
@@ -66,9 +62,8 @@ jobs:
             -p:TrimUnusedDependencies=true \
             -p:Version=${{ env.VERSION }} \
             -o ./publish/${{ matrix.target }}
-        shell: bash
       
-      - name: 上传产物到 Artifact（自动生成 zip）
+      - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}
@@ -76,30 +71,34 @@ jobs:
           retention-days: 90
 
   release:
-    name: 创建 Release 并上传 Assets
+    name: 创建 Release
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write  # 关键修复：添加发布权限
     steps:
       - name: 获取标签信息
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
-          if [ -z "$VERSION" ] || [ "$VERSION" = "${GITHUB_REF}" ]; then
-            VERSION="0.0.0"
-          fi
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         shell: bash
 
-      - name: 下载所有平台自动打包的 zip 产物
+      - name: 下载所有产物
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
-          # 保持 artifact 原始文件名（含版本和平台）
           rename-downloaded-files: false
 
-      - name: 创建 GitHub Release
+      - name: 查看下载的文件结构（调试用）
+        run: |
+          echo "当前目录结构："
+          tree ./artifacts
+        shell: bash
+
+      - name: 创建 Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.TAG_NAME }}
@@ -119,7 +118,7 @@ jobs:
             - 所有平台都需要预先安装 [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
           draft: false
           prerelease: false
-          # 直接指向下载的 zip 产物（Artifact 自动打包格式）
-          files: ./artifacts/**/*.zip
+          files: |
+            ./artifacts/BreathAIClient-*/BreathAIClient-*v${{ env.VERSION }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
