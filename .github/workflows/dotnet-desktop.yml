@@ -41,7 +41,7 @@ jobs:
         shell: bash
       
       - name: 安装 .NET SDK
-        uses: actions/setup-dotnet@v4  # 使用最新版本v4修复潜在问题
+        uses: actions/setup-dotnet@v4 
         with:
           dotnet-version: '8.x'
       
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
-      contents: write  # 关键：授予创建Release的权限
+      contents: write 
     steps:
       - name: 获取标签信息
         run: |
@@ -80,21 +80,22 @@ jobs:
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         shell: bash
-
+  
       - name: 下载所有产物
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
-          rename-downloaded-files: false
-
+          # 注意：download-artifact@v4 默认会将每个artifact解压到同名文件夹下
+          # rename-downloaded-files: false 不是 v4 的有效参数，可以移除
+  
       - name: 显示实际文件结构（调试）
         run: |
-          echo "Artifacts目录结构："
-          find ./artifacts -type f  # 列出所有文件路径
+          echo "Artifacts 目录结构："
+          find ./artifacts
         shell: bash
-
+  
       - name: 创建Release并上传资产
-        uses: softprops/action-gh-release@v2  # 使用最新版本v2
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: Release ${{ env.TAG_NAME }}
@@ -104,14 +105,14 @@ jobs:
             - 后端服务由 BreathAl 提供高性能免费AI模型
             - 支持 Windows/Linux/macOS 多平台
             - 单文件部署（需提前安装 .NET 8 运行时）
-
+  
             ## 版本号
             ${{ env.VERSION }}
-
+  
             ## 安装说明
             - macOS 用户注意：启动前需右键"打开"信任首次运行
             - 所有平台都需要预先安装 [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
           files: |
-            ./artifacts/**/*  # 匹配所有下载的产物文件
+            ./artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
