@@ -46,7 +46,6 @@ jobs:
           dotnet-version: '8.x'
 
       - name: 构建发布
-        # 关键修复：强制在所有平台上使用 bash，以统一处理多行命令
         shell: bash
         run: |
           dotnet publish BreathAIClient.csproj \
@@ -57,13 +56,15 @@ jobs:
             -p:IncludeAllContentForSelfExtract=true \
             -p:TrimUnusedDependencies=true \
             -p:Version=${{ env.VERSION }} \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
             -o ./publish/${{ matrix.target }}
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}
-          path: ./publish/${{ matrix.target }}/**/*
+          path: ./publish/${{ matrix.target }}/*
           retention-days: 90
           if-no-files-found: error
   
@@ -88,11 +89,30 @@ jobs:
         with:
           path: ./artifacts
 
-      - name: 显示实际文件结构（调试）
+      - name: 重命名产物以避免冲突
         shell: bash
         run: |
-          echo "Artifacts 目录结构："
-          find ./artifacts
+          echo "开始重命名产物..."
+          cd artifacts
+          for dir in */; do
+            platform=$(echo "$dir" | sed -e "s/BreathAIClient-//" -e "s/-v.*//")
+            echo "处理目录: $dir, 平台: $platform"
+            cd "$dir"
+            for file in *; do
+              if [[ "$file" == *.* ]]; then
+                ext=".${file##*.}"
+                name="${file%.*}"
+                mv "$file" "${name}-${platform}${ext}"
+                echo "  重命名 $file -> ${name}-${platform}${ext}"
+              else
+                mv "$file" "${file}-${platform}"
+                echo "  重命名 $file -> ${file}-${platform}"
+              fi
+            done
+            cd ..
+          done
+          echo "重命名完成. 新的文件结构:"
+          find .
 
       - name: 创建Release并上传资产
         uses: softprops/action-gh-release@v2
