@@ -33,10 +33,9 @@ jobs:
       
       - name: 获取版本号（移除 v 前缀）
         run: |
-          # 从标签提取版本号（如 v1.0.0 → 1.0.0）
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
-          # 如果没有标签，则使用默认版本
+          # 无标签时使用默认版本
           if [ -z "$VERSION" ] || [ "$VERSION" = "${GITHUB_REF}" ]; then
             VERSION="0.0.0"
           fi
@@ -69,7 +68,7 @@ jobs:
             -o ./publish/${{ matrix.target }}
         shell: bash
       
-      - name: 上传产物到 Artifact（自动打包）
+      - name: 上传产物到 Artifact（自动生成 zip）
         uses: actions/upload-artifact@v4
         with:
           name: BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}
@@ -83,42 +82,24 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: 获取标签信息
-        id: tag_info
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
-          # 如果没有标签，则使用默认版本
           if [ -z "$VERSION" ] || [ "$VERSION" = "${GITHUB_REF}" ]; then
             VERSION="0.0.0"
           fi
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Release版本号: $VERSION"
         shell: bash
 
-      - name: 下载所有平台构建产物
+      - name: 下载所有平台自动打包的 zip 产物
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
-          merge-multiple: true
-
-      - name: 为Release打包产物
-        run: |
-          # 为每个平台创建压缩包
-          for dir in ./artifacts/*/; do
-            # 提取平台名称（如BreathAIClient-win-x64-v1.0.0）
-            base=$(basename "$dir")
-            # 创建对应格式的压缩包
-            if [[ $base == *"win-"* ]]; then
-              zip -r "$base.zip" "$dir"
-            else
-              tar -czf "$base.tar.gz" -C "$dir" .
-            fi
-          done
-        shell: bash
+          # 保持 artifact 原始文件名（含版本和平台）
+          rename-downloaded-files: false
 
       - name: 创建 GitHub Release
-        id: create_release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.TAG_NAME }}
@@ -138,8 +119,7 @@ jobs:
             - 所有平台都需要预先安装 [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
           draft: false
           prerelease: false
-          files: |
-            ./*.zip
-            ./*.tar.gz
+          # 直接指向下载的 zip 产物（Artifact 自动打包格式）
+          files: ./artifacts/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
