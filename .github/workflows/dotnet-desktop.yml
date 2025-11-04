@@ -4,7 +4,7 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-
+  
 jobs:
   build:
     name: Build for ${{ matrix.target }}
@@ -30,22 +30,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: 获取版本号
+        shell: bash
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
           if [ -z "$VERSION" ]; then VERSION="0.0.0"; fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-        shell: bash
-      
+
       - name: 安装 .NET SDK
-        uses: actions/setup-dotnet@v4 
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.x'
-      
+
       - name: 构建发布
+        # 关键修复：强制在所有平台上使用 bash，以统一处理多行命令
+        shell: bash
         run: |
           dotnet publish BreathAIClient.csproj \
             -c Release \
@@ -56,44 +58,42 @@ jobs:
             -p:TrimUnusedDependencies=true \
             -p:Version=${{ env.VERSION }} \
             -o ./publish/${{ matrix.target }}
-      
-      - name: 上传产物（指定zip格式）
+
+      - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: BreathAIClient-${{ matrix.target }}-v${{ env.VERSION }}
           path: ./publish/${{ matrix.target }}/**/*
           retention-days: 90
-          if-no-files-found: error  # 确保产物存在
-
+          if-no-files-found: error
+  
   release:
     name: 创建 Release
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
-      contents: write 
+      contents: write
     steps:
       - name: 获取标签信息
+        shell: bash
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           VERSION=${TAG_NAME#v}
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-        shell: bash
-  
+          
       - name: 下载所有产物
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
-          # 注意：download-artifact@v4 默认会将每个artifact解压到同名文件夹下
-          # rename-downloaded-files: false 不是 v4 的有效参数，可以移除
-  
+
       - name: 显示实际文件结构（调试）
+        shell: bash
         run: |
           echo "Artifacts 目录结构："
           find ./artifacts
-        shell: bash
-  
+
       - name: 创建Release并上传资产
         uses: softprops/action-gh-release@v2
         with:
@@ -105,10 +105,10 @@ jobs:
             - 后端服务由 BreathAl 提供高性能免费AI模型
             - 支持 Windows/Linux/macOS 多平台
             - 单文件部署（需提前安装 .NET 8 运行时）
-  
+
             ## 版本号
             ${{ env.VERSION }}
-  
+
             ## 安装说明
             - macOS 用户注意：启动前需右键"打开"信任首次运行
             - 所有平台都需要预先安装 [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
